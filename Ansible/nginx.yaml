@@ -1,0 +1,20 @@
+---
+- name: Install NGINX on web server
+  hosts: ec2
+  become: true
+
+  tasks:
+    - name: Update packages
+      apt:
+        update_cache: yes
+
+    - name: Install NGINX
+      apt:
+        name: nginx
+        state: present
+    
+    - name: NGINX server
+      systemd:
+        name: nginx
+        state: started
+        enable: nginx

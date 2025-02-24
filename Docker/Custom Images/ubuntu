@@ -1,0 +1,13 @@
+# Use a base image (e.g., CentOS) as the starting point
+FROM ubuntu:22.04
+
+# file author / maintainer
+LABEL MAINTAINER="Nabeel Hassan <thenabeelhassan@gmail.com>"
+
+# Install linux/unix utilities
+RUN apt-get update && \
+    apt-get install -y sudo nano telnet unzip net-tools && \
+    apt-get clean all
+
+# Dummy process
+CMD ["/bin/bash"]

@@ -1,0 +1,25 @@
+pipeline {
+    agent any
+
+    environment {
+        GITHUB_CREDENTIALS_ID = ''
+        GITHUB_URL = ''
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    userRemoteConfigs: [[
+                        credentialsId: "${GITHUB_CREDENTIALS_ID}",
+                        url: "${GITHUB_URL}"
+                    ]]
+                ])
+            }
+        }
+    }
+}

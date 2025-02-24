@@ -1,0 +1,32 @@
+---
+- name: Install Node.js
+  hosts: ec2
+  become: true
+
+  tasks:
+    - name: Add NodeSource repository for Node.js (v18.x)
+      ansible.builtin.apt_key:
+        url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+        state: present
+      register: node_key_added
+
+    - name: Add NodeSource repository for Node.js (v18.x)
+      ansible.builtin.apt_repository:
+        repo: deb https://deb.nodesource.com/node_18.x {{ ansible_distribution_release }} main
+        state: present
+        update_cache: yes
+      when: node_key_added is changed
+
+    - name: Install Node.js
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: yes
+
+    - name: Verify Node.js installation
+      ansible.builtin.command: node -v
+      register: node_version
+
+    - name: Show Node.js version
+      ansible.builtin.debug:
+        msg: "Node.js version installed: {{ node_version.stdout }}"
