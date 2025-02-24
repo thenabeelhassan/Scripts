@@ -1,4 +1,4 @@
 # Scripts
 
-## Docker
+## Docker Compose
 Snippets of Docker Compose.
