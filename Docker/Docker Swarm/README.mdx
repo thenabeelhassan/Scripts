@@ -1,16 +1,25 @@
 Run commands on Node1:
 
+```bash
 sudo docker swarm init --advertise-addr <Master1-IP>
+```
 
+```bash
 docker swarm join-token manager
+```
 
+```bash
 docker swarm join-token worker
-
+```
 
 Run Commands on Node 2 (Master):
 
+```bash
 docker swarm join --token <Manager TOKEN> <Master1-IP>:2377
+```
 
 Run commands on Worker Nodes:
 
+```bash
 docker swarm join --token <Worker TOKEN> <Master1-IP>:2377
+```
