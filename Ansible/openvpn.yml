@@ -1,0 +1,47 @@
+---
+- name: Install OpenVPN Access Server
+  hosts: vpn_vm
+  become: true
+
+  tasks:
+    - name: Update APT package cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - ca-certificates
+          - wget
+          - net-tools
+          - gnupg
+        state: present
+
+    - name: Download OpenVPN repository GPG key
+      get_url:
+        url: https://as-repository.openvpn.net/as-repo-public.asc
+        dest: /etc/apt/trusted.gpg.d/as-repository.asc
+        mode: '0644'
+
+    - name: Add OpenVPN repository
+      copy:
+        content: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/as-repository.asc] http://as-repository.openvpn.net/as/debian jammy main"
+        dest: /etc/apt/sources.list.d/openvpn-as-repo.list
+        mode: '0644'
+
+    - name: Update APT package cache after adding OpenVPN repository
+      apt:
+        update_cache: yes
+
+    - name: Install OpenVPN Access Server
+      apt:
+        name: openvpn-as
+        state: present
+
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        state: present
+        sysctl_set: yes
+        reload: yes
