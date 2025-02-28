@@ -1,0 +1,17 @@
+# Terrafrom files
+
+# Local .terraform directories
+**/.terraform/*
+
+# Variable files
+*.tfvars
+
+# Plan files
+*tfplan*
+
+# State files
+*.tfstate
+*.tfstate.*
+
+# lock files
+*.lock.hcl
