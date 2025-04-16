@@ -1,6 +1,6 @@
 #!/bin/bash
 
-proxy_host="10.0.101.88"
+proxy_host="ipaddressofproxyserver"
 
 echo "export http_proxy=\"http://$proxy_host:8888\"" >> ./etc/environment
 echo "export https_proxy=\"http://$proxy_host:8888\"" >> ./etc/environment
