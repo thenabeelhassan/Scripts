@@ -6,5 +6,6 @@ This repo will have Automation Scripts/Snippets of following:
 2. Bash
 3. Docker
 4. Jenkins
-5. PowerShell
-6. Terraform
+5. NGINX
+6. PowerShell
+7. Terraform
