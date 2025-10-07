@@ -17,7 +17,7 @@ sudo mkdir /web
 
 ```sh
 cd /etc/nginx/sites-enabled/
-sudo ln -s config /etc/nginx/sites-available/myweb .
+sudo ln -s /etc/nginx/sites-available/myweb myweb
 ```
 
 5. Restart the __NGINX__ service to apply the changes
