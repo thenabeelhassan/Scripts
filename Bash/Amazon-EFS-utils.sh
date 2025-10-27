@@ -2,6 +2,7 @@
 
 set -euxo pipefail
 
+apt update
 apt -y install git binutils rustc cargo pkg-config libssl-dev gettext
 cd /tmp
 git clone https://github.com/aws/efs-utils
