@@ -17,9 +17,9 @@ services:
     networks:
       - zabbix-net
 
-
   zabbix-server:
     image: zabbix/zabbix-server-mysql:latest
+    container_name: zabbix-server
     restart: always
     depends_on:
       - mysql
@@ -33,13 +33,10 @@ services:
       - "10051:10051"
     networks:
       - zabbix-net
-    deploy:
-      replicas: 2
-      restart_policy:
-        condition: any
 
   zabbix-web:
     image: zabbix/zabbix-web-nginx-mysql:latest
+    container_name: zabbix-web
     restart: always
     depends_on:
       - mysql
@@ -56,13 +53,10 @@ services:
       - "8443:8443"
     networks:
       - zabbix-net
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: any
 
   zabbix-agent:
     image: zabbix/zabbix-agent:latest
+    container_name: zabbix-agent
     restart: always
     depends_on:
       - zabbix-server
@@ -71,14 +65,10 @@ services:
       ZBX_SERVER_HOST: zabbix-server
     networks:
       - zabbix-net
-    deploy:
-      replicas: 2
-      restart_policy:
-        condition: any
 
 volumes:
   mysql_data:
 
 networks:
   zabbix-net:
-    driver: overlay
+    driver: bridge
