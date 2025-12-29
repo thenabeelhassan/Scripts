@@ -1,10 +1,12 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
     container_name: zabbix-mysql
     restart: always
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_bin
+      - --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: zabbix
@@ -15,14 +17,15 @@ services:
     networks:
       - zabbix-net
 
+
   zabbix-server:
     image: zabbix/zabbix-server-mysql:latest
-    container_name: zabbix-server
     restart: always
     depends_on:
       - mysql
     environment:
       DB_SERVER_HOST: mysql
+      DB_SERVER_PORT: 3306
       MYSQL_DATABASE: zabbix
       MYSQL_USER: zabbix
       MYSQL_PASSWORD: zabbixpassword
@@ -30,10 +33,13 @@ services:
       - "10051:10051"
     networks:
       - zabbix-net
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: any
 
   zabbix-web:
     image: zabbix/zabbix-web-nginx-mysql:latest
-    container_name: zabbix-web
     restart: always
     depends_on:
       - mysql
@@ -50,10 +56,13 @@ services:
       - "8443:8443"
     networks:
       - zabbix-net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
 
   zabbix-agent:
     image: zabbix/zabbix-agent:latest
-    container_name: zabbix-agent
     restart: always
     depends_on:
       - zabbix-server
@@ -62,10 +71,14 @@ services:
       ZBX_SERVER_HOST: zabbix-server
     networks:
       - zabbix-net
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: any
 
 volumes:
   mysql_data:
 
 networks:
   zabbix-net:
-    driver: bridge
+    driver: overlay
