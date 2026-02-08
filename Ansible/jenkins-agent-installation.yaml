@@ -1,0 +1,47 @@
+---
+- name: Install jenkins agent
+  hosts: control_plane
+  become: yes
+
+  tasks:
+    - name: Update & upgrade system
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install prerequisites for Jenkins agent
+      apt:
+        name:
+          - openjdk-17-jre
+        state: present
+
+    - name: Create work directory for Jenkins agent
+      file:
+        path: /code
+        state: directory
+        mode: '0755'
+
+
+    - name: Download Jenkins agent jar
+      get_url:
+        url: http://10.0.0.200:8080/jnlpJars/agent.jar
+        dest: /code/agent.jar
+        mode: '0644'
+
+    - name: Run Jenkins agent
+      shell: >
+        java -jar /code/agent.jar
+        -url http://10.0.0.200:8080/
+        -secret d70ebae18d2e1afb3192becbd10777666fc51f12ae8d0156d6f72e52427f1801
+        -name "Home-K8s-Node-1"
+        -webSocket
+        -workDir "/code"
+      args:
+        chdir: /code
+      async: 30
+      poll: 0
+      register: jenkins_agent
+
+    - name: Display Jenkins agent startup status
+      debug:
+        msg: "Jenkins agent started in background on {{ inventory_hostname }}"

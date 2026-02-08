@@ -1,0 +1,179 @@
+---
+- name: Kubernetes Cluster Setup with Containerd (v1.34)
+  hosts: all
+  become: yes
+  vars:
+    pod_network_cidr: "10.250.0.0/16"
+    kube_version: "1.34.1"        # or "1.34.0" — pick the patch you want
+    kubernetes_apt_repo: 'https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_replace("\.[0-9]+$","") }}/deb/'
+    # regex_replace ensures we use “v1.34” as minor stream in URL
+
+  tasks:
+    - name: Update & upgrade system
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Disable swap
+      shell: |
+        swapoff -a
+        sed -i '/ swap / s/^/#/' /etc/fstab
+
+    - name: Ensure swap remains disabled on reboot
+      cron:
+        name: Disable swap at reboot
+        special_time: reboot
+        job: /sbin/swapoff -a
+
+    - name: Load required kernel modules
+      copy:
+        dest: /etc/modules-load.d/kubernetes.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: Activate those modules now
+      shell: |
+        modprobe overlay
+        modprobe br_netfilter
+
+    - name: Configure sysctl for Kubernetes networking
+      copy:
+        dest: /etc/sysctl.d/kubernetes.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward = 1
+
+    - name: Reload sysctl settings
+      command: sysctl --system
+
+    - name: Install containerd
+      apt:
+        name: containerd
+        state: present
+
+    - name: Ensure /etc/containerd exists
+      file:
+        path: /etc/containerd
+        state: directory
+
+    - name: Generate default config.toml for containerd
+      shell: containerd config default > /etc/containerd/config.toml
+      args:
+        creates: /etc/containerd/config.toml
+
+    - name: Enable SystemdCgroup in containerd config
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: '^\s*SystemdCgroup = false'
+        replace: '        SystemdCgroup = true'
+
+    - name: Restart & enable containerd
+      systemd:
+        name: containerd
+        enabled: yes
+        state: restarted
+
+    - name: Install prerequisites for Kubernetes
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+        state: present
+
+    - name: Ensure keyrings directory exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Kubernetes GPG key
+      shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_replace('\.[0-9]+$','') }}/deb/Release.key \
+          | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes apt repository for v{{ kube_version }}
+      copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_replace('\.[0-9]+$','') }}/deb/ /
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      retries: 3
+      delay: 5
+      until: result is success
+      register: result
+
+    - name: Install kubeadm, kubelet, kubectl
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: yes
+
+
+    - name: Hold Kubernetes packages at desired version
+      shell: |
+        apt-mark hold kubelet kubeadm kubectl
+
+- name: Initialize Control Plane (on master)
+  hosts: control_plane
+  become: yes
+  vars:
+    pod_network_cidr: "10.250.0.0/16"
+    kube_version: "1.34.1"
+  tasks:
+    - name: Initialize Kubernetes control plane
+      command: >
+        kubeadm init
+        --pod-network-cidr={{ pod_network_cidr }}
+        --apiserver-advertise-address={{ ansible_host }}
+        --kubernetes-version v{{ kube_version }}
+      args:
+        creates: /etc/kubernetes/admin.conf
+      register: kubeadm_init
+
+    - name: Configure kubectl for admin user
+      become_user: "{{ ansible_user | default('ubuntu') }}"
+      shell: |
+        mkdir -p $HOME/.kube
+        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+    - name: Save join command
+      shell: kubeadm token create --print-join-command > /tmp/join-command.sh
+      when: kubeadm_init is changed
+
+    - name: Fetch join command to controller
+      fetch:
+        src: /tmp/join-command.sh
+        dest: ./join-command.sh
+        flat: yes
+
+    - name: Install Flannel (or your chosen CNI)
+      shell: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Join Worker Nodes
+  hosts: workers
+  become: yes
+  tasks:
+    - name: Copy join script to worker
+      copy:
+        src: ./join-command.sh
+        dest: /tmp/join-command.sh
+        mode: '0755'
+
+    - name: Run join to join cluster
+      command: sh /tmp/join-command.sh
+      args:
+        creates: /etc/kubernetes/kubelet.conf
